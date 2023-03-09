@@ -1,74 +1,62 @@
-public float speed;
-public float jumpPower;
-public float dashDistance;
-public float dashDuration;
-public float dashCooldown;
-public LayerMask groundLayer;
-private Rigidbody2D rb;
-private Animator animator;
-private bool isGrounded;
-private bool canDash = true;
+using UnityEngine;
 
-void Start()
+public class PlayerMovement : MonoBehaviour
 {
-    rb = GetComponent<Rigidbody2D>();
-    animator = GetComponent<Animator>();
-}
+    public float moveSpeed = 5f;
+    public float jumpForce = 10f;
+    public float dashDistance = 3f;
+    public float dashDuration = 0.3f;
+    public float dashCooldown = 1f;
+    [SerializeField] public string dashInput = "Dash";
 
-void FixedUpdate()
-{
-    float horizontalInput = Input.GetAxisRaw("Horizontal");
-    rb.velocity = new Vector2(horizontalInput * speed, rb.velocity.y);
+    private Rigidbody2D rb;
+    private bool isGrounded = false;
+    private bool canDash = true;
 
-    if (horizontalInput != 0)
+    void Start()
     {
-        transform.localScale = new Vector3(Mathf.Sign(horizontalInput), 1, 1);
+        rb = GetComponent<Rigidbody2D>();
     }
 
-    if (Input.GetButtonDown("Jump") && isGrounded)
+    void Update()
     {
-        rb.AddForce(Vector2.up * jumpPower, ForceMode2D.Impulse);
+        float moveDirection = Input.GetAxis("Horizontal");
+        rb.velocity = new Vector2(moveDirection * moveSpeed, rb.velocity.y);
+
+        if (Input.GetButtonDown(dashInput) && canDash || Input.GetKeyDown(KeyCode.E) && canDash)
+        {
+            StartCoroutine(Dash());
+        }
+
+        if (Input.GetButtonDown("Jump") && isGrounded)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            isGrounded = false;
+        }
     }
 
-    if (Input.GetButtonDown("Dash") && canDash)
+    void OnCollisionEnter2D(Collision2D collision)
     {
-        StartCoroutine(Dash());
-    }
-
-    animator.SetFloat("Speed", Mathf.Abs(horizontalInput));
-    animator.SetBool("IsGrounded", isGrounded);
-}
-
-void OnCollisionStay2D(Collision2D other)
-{
-    foreach (ContactPoint2D contact in other.contacts)
-    {
-        if (contact.normal.y > 0.7f)
+        if (collision.gameObject.CompareTag("Ground"))
         {
             isGrounded = true;
         }
     }
-}
 
-void OnCollisionExit2D(Collision2D other)
-{
-    isGrounded = false;
-}
-
-IEnumerator Dash()
-{
-    canDash = false;
-    float dashEndTime = Time.time + dashDuration;
-    Vector2 dashDirection = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized;
-    rb.velocity = dashDirection * dashDistance / dashDuration;
-
-    while (Time.time < dashEndTime)
+    IEnumerator Dash()
     {
-        yield return null;
+        canDash = false;
+        float dashEndTime = Time.time + dashDuration;
+        Vector2 dashDirection = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized;
+        rb.velocity = dashDirection * dashDistance / dashDuration;
+
+        while (Time.time < dashEndTime)
+        {
+            yield return null;
+        }
+
+        rb.velocity = Vector2.zero;
+        yield return new WaitForSeconds(dashCooldown);
+        canDash = true;
     }
-
-    rb.velocity = Vector2.zero;
-    yield return new WaitForSeconds(dashCooldown);
-    canDash = true;
 }
-
