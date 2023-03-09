@@ -1,0 +1,74 @@
+public float speed;
+public float jumpPower;
+public float dashDistance;
+public float dashDuration;
+public float dashCooldown;
+public LayerMask groundLayer;
+private Rigidbody2D rb;
+private Animator animator;
+private bool isGrounded;
+private bool canDash = true;
+
+void Start()
+{
+    rb = GetComponent<Rigidbody2D>();
+    animator = GetComponent<Animator>();
+}
+
+void FixedUpdate()
+{
+    float horizontalInput = Input.GetAxisRaw("Horizontal");
+    rb.velocity = new Vector2(horizontalInput * speed, rb.velocity.y);
+
+    if (horizontalInput != 0)
+    {
+        transform.localScale = new Vector3(Mathf.Sign(horizontalInput), 1, 1);
+    }
+
+    if (Input.GetButtonDown("Jump") && isGrounded)
+    {
+        rb.AddForce(Vector2.up * jumpPower, ForceMode2D.Impulse);
+    }
+
+    if (Input.GetButtonDown("Dash") && canDash)
+    {
+        StartCoroutine(Dash());
+    }
+
+    animator.SetFloat("Speed", Mathf.Abs(horizontalInput));
+    animator.SetBool("IsGrounded", isGrounded);
+}
+
+void OnCollisionStay2D(Collision2D other)
+{
+    foreach (ContactPoint2D contact in other.contacts)
+    {
+        if (contact.normal.y > 0.7f)
+        {
+            isGrounded = true;
+        }
+    }
+}
+
+void OnCollisionExit2D(Collision2D other)
+{
+    isGrounded = false;
+}
+
+IEnumerator Dash()
+{
+    canDash = false;
+    float dashEndTime = Time.time + dashDuration;
+    Vector2 dashDirection = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized;
+    rb.velocity = dashDirection * dashDistance / dashDuration;
+
+    while (Time.time < dashEndTime)
+    {
+        yield return null;
+    }
+
+    rb.velocity = Vector2.zero;
+    yield return new WaitForSeconds(dashCooldown);
+    canDash = true;
+}
+
